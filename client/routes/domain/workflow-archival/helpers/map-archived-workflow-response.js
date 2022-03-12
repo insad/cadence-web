@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,6 +28,7 @@ export default ({ dateFormat, results, timeFormat, timezone }) =>
         ({
           closeStatus,
           closeTime,
+          domainName,
           execution: { runId, workflowId },
           startTime,
           type: { name },
@@ -39,6 +40,7 @@ export default ({ dateFormat, results, timeFormat, timezone }) =>
             timeFormat,
             timezone,
           }),
+          domainName,
           runId,
           startTime: getDatetimeFormattedString({
             date: startTime,

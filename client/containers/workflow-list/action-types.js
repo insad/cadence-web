@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,4 +19,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// TODO - Define action types per action...
+export const WORKFLOW_LIST_ON_FILTER_CHANGE = 'WORKFLOW_LIST_ON_FILTER_CHANGE';
+export const WORKFLOW_LIST_ON_FILTER_MODE_CLICK =
+  'WORKFLOW_LIST_ON_FILTER_MODE_CLICK';

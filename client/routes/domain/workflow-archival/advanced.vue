@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -40,7 +40,7 @@ import { getErrorMessage } from '~helpers';
 
 export default pagedGrid({
   name: 'workflow-archival-advanced',
-  props: ['dateFormat', 'domain', 'timeFormat', 'timezone'],
+  props: ['clusterName', 'dateFormat', 'domain', 'timeFormat', 'timezone'],
   data() {
     return {
       error: undefined,
@@ -173,6 +173,7 @@ export default pagedGrid({
             tag="router-link"
             :to="{
               name: 'workflow-archival-basic',
+              params: { clusterName },
             }"
           />
         </flex-grid-item>
@@ -189,6 +190,8 @@ export default pagedGrid({
           v-for="result in formattedResults"
           :close-status="result.closeStatus"
           :close-time="result.closeTime"
+          :cluster-name="clusterName"
+          :domain-name="result.domainName"
           :key="result.runId"
           :run-id="result.runId"
           :start-time="result.startTime"

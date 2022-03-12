@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,36 +19,39 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-const { REQUEST_CONFIG } = require('../constants');
 const formatBody = require('./format-body');
 const formatMethod = require('./format-method');
 const formatRequestName = require('./format-request-name');
 const uiTransform = require('./ui-transform');
+const withNextPageTokenBodyTransform = require('./with-next-page-token-body-transform');
 
-const makeRequest = ({ authTokenHeaders, channels, ctx }) => ({
-  bodyTransform,
+const makeRequest = ({ authTokenHeaders, channels, ctx, requestConfig }) => ({
+  bodyTransform = withNextPageTokenBodyTransform,
   channelName = 'cadence',
   method,
   requestName,
-  responseTransform,
+  responseTransform = uiTransform,
   serviceName = 'WorkflowService',
 }) => body =>
   new Promise((resolve, reject) => {
     try {
-      channels[channelName].request(REQUEST_CONFIG).send(
+      channels[channelName].request(requestConfig).send(
         formatMethod({ method, serviceName }),
         {
           ...authTokenHeaders,
         },
         {
-          [formatRequestName(requestName)]: formatBody({ body, bodyTransform }),
+          [formatRequestName(requestName)]: formatBody({
+            body,
+            bodyTransform,
+          }),
         },
         (error, response) => {
           try {
             if (error) {
               reject(error);
             } else if (response.ok) {
-              resolve((responseTransform || uiTransform)(response.body));
+              resolve(responseTransform(response.body));
             } else {
               ctx.throw(
                 response.typeName === 'entityNotExistError' ? 404 : 400,

@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -75,7 +75,7 @@ export default {
       <slot name="getting-started" />
       <div v-if="!hideDocs">
         <a
-          href="https://cadenceworkflow.io/docs/cadence"
+          href="https://cadenceworkflow.io/docs/get-started/"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -137,7 +137,7 @@ export default {
 
       <div>
         <a
-          href="https://cadenceworkflow.io/docs/08_cli"
+          href="https://cadenceworkflow.io/docs/cli/"
           target="_blank"
           rel="noopener noreferrer"
         >

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,19 +21,22 @@
 
 import { ROUTE_PUSH, ROUTE_REPLACE, ROUTE_UPDATE_QUERY } from './action-types';
 import { ROUTE_QUERY } from './getter-types';
+import { getUpdatedQuery } from './helpers';
 
 const actionCreator = router => ({
   [ROUTE_PUSH]: (_, args) => router.push(args),
   [ROUTE_REPLACE]: (_, args) => router.replace(args),
-  [ROUTE_UPDATE_QUERY]: ({ getters }, args) => {
-    const query = getters[ROUTE_QUERY];
-
-    router.replace({
-      query: {
-        ...query,
-        ...args,
-      },
+  [ROUTE_UPDATE_QUERY]: ({ getters }, payload) => {
+    const updatedQuery = getUpdatedQuery({
+      payload,
+      query: getters[ROUTE_QUERY],
     });
+
+    if (updatedQuery) {
+      router.replace({
+        query: updatedQuery,
+      });
+    }
   },
 });
 

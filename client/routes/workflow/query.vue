@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 // Portions of the Software are attributed to Copyright (c) 2020 Temporal Technologies Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,8 +21,13 @@
 // THE SOFTWARE.
 
 import { getQueryResult } from './helpers';
+import { SelectInput } from '~components';
+import { httpService } from '~services';
 
 export default {
+  components: {
+    'select-input': SelectInput,
+  },
   data() {
     return {
       error: undefined,
@@ -34,7 +39,7 @@ export default {
       running: false,
     };
   },
-  props: ['baseAPIURL', 'taskListName', 'isWorkerRunning'],
+  props: ['baseAPIURL', 'clusterName', 'taskListName', 'isWorkerRunning'],
   created() {
     if (!this.isWorkerRunning) {
       return;
@@ -50,7 +55,7 @@ export default {
     },
     run() {
       this.running = true;
-      this.$http
+      httpService
         .post(`${this.baseAPIURL}/query/${this.queryName}`)
         .then(
           ({ queryResult }) => {
@@ -67,7 +72,8 @@ export default {
     fetchQueries() {
       this.loading = true;
 
-      return this.$http(`${this.baseAPIURL}/query`)
+      return httpService
+        .get(`${this.baseAPIURL}/query`)
         .then(
           queries => {
             this.queries = queries.filter(query => query !== '__stack_trace');
@@ -106,12 +112,11 @@ export default {
   <section class="query" :class="{ loading }" data-cy="query">
     <header v-if="queries && queries.length">
       <div class="query-name">
-        <v-select
-          placeholder="Choose a Query"
-          :value="queryName"
+        <select-input
+          label="Query"
           :options="queries"
-          :on-change="setQuery"
-          :searchable="false"
+          :value="queryName"
+          @change="setQuery"
         />
       </div>
       <a
@@ -132,6 +137,7 @@ export default {
         :to="{
           name: 'task-list',
           params: {
+            clusterName,
             taskList: taskListName,
           },
         }"
@@ -160,11 +166,6 @@ section.query {
       flex: 0 0 auto;
       min-width: 350px;
       superlabel();
-
-      &::before {
-        top: -16px;
-        content: 'query';
-      }
     }
 
     a.run {

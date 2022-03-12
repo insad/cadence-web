@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,13 +19,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-const getWorkflowLink = ({ domain, runID, workflowID }) =>
+const getWorkflowLink = ({ clusterName, domain, runID, workflowID }) =>
   (domain &&
     runID &&
     workflowID && {
       routeLink: {
         name: 'workflow/summary',
         params: {
+          clusterName,
           domain,
           workflowId: workflowID,
           runId: runID,

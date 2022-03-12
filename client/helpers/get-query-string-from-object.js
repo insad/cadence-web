@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -29,6 +29,10 @@ const getQueryStringFromObject = (params = {}) => {
   return (
     '?' +
     paramKeys
+      .filter(
+        queryName =>
+          params[queryName] !== null && params[queryName] !== undefined
+      )
       .map(
         queryName =>
           encodeURIComponent(queryName) +

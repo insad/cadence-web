@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -36,7 +36,12 @@ import {
 } from './components';
 import { GRAPH_VIEW_DAG, GRAPH_VIEW_TIMELINE } from './constants';
 import { getDefaultSplitSize } from './helpers';
-import { DetailList, FeatureFlag, HighlightToggle } from '~components';
+import {
+  DetailList,
+  FeatureFlag,
+  HighlightToggle,
+  SelectInput,
+} from '~components';
 
 export default {
   name: 'history',
@@ -50,7 +55,7 @@ export default {
         'true',
       scrolledToEventOnInit: false,
       splitEnabled: false,
-      eventType: '',
+      eventType: 'All',
       eventTypes: [
         { value: 'All', label: 'All' },
         { value: 'Decision', label: 'Decision' },
@@ -71,6 +76,7 @@ export default {
   },
   props: [
     'baseAPIURL',
+    'clusterName',
     'domain',
     'eventId',
     'events',
@@ -331,6 +337,7 @@ export default {
     'highlight-toggle': HighlightToggle,
     prism: Prism,
     RecycleScroller,
+    'select-input': SelectInput,
     WorkflowGraph,
     timeline: Timeline,
   },
@@ -439,13 +446,13 @@ export default {
             <div class="thead">
               <div class="th col-id">ID</div>
               <div class="th col-type">
-                Type
-                <v-select
-                  class="eventType"
-                  value="All"
+                <select-input
+                  background-color="rgb(248, 248, 249)"
+                  label="Type"
+                  min-width="150px"
                   :options="eventTypes"
-                  :on-change="setEventType"
-                  :searchable="false"
+                  :value="eventType"
+                  @change="setEventType"
                 />
               </div>
               <div class="th col-time">
@@ -544,7 +551,10 @@ export default {
                 </DynamicScrollerItem>
               </template>
             </DynamicScroller>
-            <footer-toolbar :pending-task-count="pendingTaskCount" />
+            <footer-toolbar
+              :cluster-name="clusterName"
+              :pending-task-count="pendingTaskCount"
+            />
           </div>
           <prism
             class="json"
@@ -805,12 +815,6 @@ section.history {
         display: inline-block;
         font-weight: 500;
         text-transform: uppercase;
-
-        & > .v-select.eventType {
-          margin-left: 10px;
-          display: inline-block;
-          width: 150px;
-        }
       }
 
       & + .spacer {

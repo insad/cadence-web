@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,6 +22,7 @@
 import { WORKFLOW_EVENT_TYPE } from '~constants';
 
 const getSummaryWorkflowStatus = ({
+  clusterName,
   isWorkflowRunning,
   workflow,
   workflowCompletedEvent,
@@ -45,6 +46,7 @@ const getSummaryWorkflowStatus = ({
       to: {
         name: 'workflow/summary',
         params: {
+          clusterName,
           runId: workflowCompletedEvent.details.newExecutionRunId,
         },
       },

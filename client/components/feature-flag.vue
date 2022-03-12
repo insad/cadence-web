@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,14 +20,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import { FeatureFlagService } from '~services';
+import { featureFlagService } from '~services';
 
 export default {
   name: 'feature-flag',
   props: {
+    allowDisabled: {
+      type: Boolean,
+      default: false,
+    },
     display: {
       type: String,
       validator: value => ['inline', 'inline-block'].includes(value),
+    },
+    grow: {
+      type: [String, Number],
+    },
+    margin: {
+      type: String,
     },
     name: {
       required: true,
@@ -36,20 +46,24 @@ export default {
     params: {
       type: Object,
     },
+    width: {
+      type: String,
+    },
   },
   data() {
     return {
       isFeatureFlagEnabled: false,
+      isLoading: true,
     };
   },
   async mounted() {
     const { name, params } = this;
-    const featureFlagService = new FeatureFlagService();
 
     this.isFeatureFlagEnabled = await featureFlagService.isFeatureFlagEnabled({
       name,
       params,
     });
+    this.isLoading = false;
   },
 };
 </script>
@@ -57,10 +71,17 @@ export default {
 <template>
   <div
     class="feature-flag"
-    :class="{ [display]: display }"
-    v-if="isFeatureFlagEnabled"
+    :class="{
+      [display]: display,
+      enabled: isFeatureFlagEnabled,
+      disabled: !isFeatureFlagEnabled,
+    }"
+    :style="{ flexGrow: grow, marginRight: margin, maxWidth: width }"
+    v-if="!isLoading && (isFeatureFlagEnabled || allowDisabled)"
   >
-    <slot></slot>
+    <slot v-if="isFeatureFlagEnabled"></slot>
+    <slot name="enabled" v-if="isFeatureFlagEnabled"></slot>
+    <slot name="disabled" v-if="!isFeatureFlagEnabled"></slot>
   </div>
 </template>
 

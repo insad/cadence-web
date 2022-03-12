@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 // Portions of the Software are attributed to Copyright (c) 2020 Temporal Technologies Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,6 +22,7 @@
 const Router = require('koa-router');
 
 const {
+  clearCacheHandler,
   clusterHandler,
   domainAuthorizationHandler,
   domainHandler,
@@ -41,14 +42,26 @@ const {
   workflowSignalHandler,
   workflowTerminateHandler,
 } = require('./routes');
-
+const { ONE_HOUR_IN_MILLISECONDS } = require('./constants');
 const { listWorkflows } = require('./helpers');
+const { CacheManager } = require('./managers');
+const { ClusterService, DomainService } = require('./services');
 
 const router = new Router();
 
-router.get('/api/cluster', clusterHandler);
+const clusterCacheManager = new CacheManager(ONE_HOUR_IN_MILLISECONDS);
+const clusterService = new ClusterService(clusterCacheManager);
 
-router.get('/api/domains', domainListHandler);
+const domainCacheManager = new CacheManager(ONE_HOUR_IN_MILLISECONDS);
+const domainService = new DomainService(domainCacheManager);
+
+router.get('/api/cluster', clusterHandler(clusterService));
+
+router.delete('/api/cluster/cache', clearCacheHandler(clusterCacheManager));
+
+router.get('/api/domains', domainListHandler(domainService));
+
+router.delete('/api/domains/cache', clearCacheHandler(domainCacheManager));
 
 router.get('/api/domains/:domain', domainHandler);
 
@@ -70,13 +83,18 @@ router.get('/api/domains/:domain', domainHandler);
 router.get('/api/domains/:domain/authorization', domainAuthorizationHandler);
 
 router.get(
+  '/api/domains/:domain/workflows/all',
+  listWorkflows.bind(null, { clusterService, state: 'all' })
+);
+
+router.get(
   '/api/domains/:domain/workflows/open',
-  listWorkflows.bind(null, 'open')
+  listWorkflows.bind(null, { clusterService, state: 'open' })
 );
 
 router.get(
   '/api/domains/:domain/workflows/closed',
-  listWorkflows.bind(null, 'closed')
+  listWorkflows.bind(null, { clusterService, state: 'closed' })
 );
 
 router.get(

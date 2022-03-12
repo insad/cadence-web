@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -39,13 +39,13 @@ export default {
 </script>
 
 <template>
-  <section>
+  <section class="window">
     <navigation-bar>
       <navigation-link
         :exact="true"
         icon="icon_search"
         label="Domains"
-        :to="{ name: 'domain-list' }"
+        :to="{ name: 'domain-search' }"
       />
       <navigation-link
         label="News"
@@ -55,7 +55,7 @@ export default {
       <navigation-link label="Help" icon="icon_help" :to="{ name: 'help' }" />
     </navigation-bar>
     <router-view
-      name="domain-list"
+      name="domain-search"
       @onNotification="onNotification"
       @onWorkflowHistoryEventParamToggle="onWorkflowHistoryEventParamToggle"
     />
@@ -64,4 +64,10 @@ export default {
   </section>
 </template>
 
-<style lang="stylus"></style>
+<style lang="stylus">
+.window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+</style>

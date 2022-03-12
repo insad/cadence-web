@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -59,7 +59,7 @@ describe('Describe Domain', function() {
       .get('/api/domains')
       .expect(200)
       .expect('Content-Type', /json/)
-      .expect({ domains, nextPageToken: null });
+      .expect(domains);
   });
 
   it('should describe the domain', async function() {

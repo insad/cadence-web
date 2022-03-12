@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -42,6 +42,7 @@ import {
   LoadingMessage,
   LoadingSpinner,
   NoResults,
+  SelectInput,
   TextInput,
 } from '~components';
 import {
@@ -52,7 +53,7 @@ import {
 
 export default pagedGrid({
   name: 'workflow-archival-basic',
-  props: ['dateFormat', 'domain', 'timeFormat', 'timezone'],
+  props: ['clusterName', 'dateFormat', 'domain', 'timeFormat', 'timezone'],
   data() {
     return {
       error: undefined,
@@ -227,6 +228,7 @@ export default pagedGrid({
     'loading-message': LoadingMessage,
     'loading-spinner': LoadingSpinner,
     'no-results': NoResults,
+    'select-input': SelectInput,
     'text-input': TextInput,
   },
 });
@@ -255,11 +257,11 @@ export default pagedGrid({
           />
         </flex-grid-item>
         <flex-grid-item width="160px">
-          <v-select
-            :on-change="onSelectChange"
+          <select-input
+            label="Status"
             :options="statusList"
-            :searchable="false"
             :value="status"
+            @change="onSelectChange"
           />
         </flex-grid-item>
         <flex-grid-item width="165px">
@@ -274,6 +276,7 @@ export default pagedGrid({
             tag="router-link"
             :to="{
               name: 'workflow-archival-advanced',
+              params: { clusterName },
             }"
           />
         </flex-grid-item>
@@ -290,6 +293,8 @@ export default pagedGrid({
           v-for="result in formattedResults"
           :close-status="result.closeStatus"
           :close-time="result.closeTime"
+          :cluster-name="clusterName"
+          :domain-name="result.domainName"
           :key="result.runId"
           :run-id="result.runId"
           :start-time="result.startTime"

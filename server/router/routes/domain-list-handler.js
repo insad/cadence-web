@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,13 +19,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-const domainListHandler = async ctx => {
-  ctx.body = await ctx.cadence.listDomains({
-    pageSize: 50,
-    nextPageToken: ctx.query.nextPageToken
-      ? Buffer.from(ctx.query.nextPageToken, 'base64')
-      : undefined,
-  });
+const domainListHandler = domainService => async ctx => {
+  ctx.body = await domainService.searchDomains(ctx);
 };
 
 module.exports = domainListHandler;

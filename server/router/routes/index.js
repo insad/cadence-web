@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,6 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+const clearCacheHandler = require('./clear-cache-handler');
 const clusterHandler = require('./cluster-handler');
 const domainAuthorizationHandler = require('./domain-authorization-handler');
 const domainHandler = require('./domain-handler');
@@ -39,6 +40,7 @@ const workflowSignalHandler = require('./workflow-signal-handler');
 const workflowTerminateHandler = require('./workflow-terminate-handler');
 
 module.exports = {
+  clearCacheHandler,
   clusterHandler,
   domainAuthorizationHandler,
   domainHandler,

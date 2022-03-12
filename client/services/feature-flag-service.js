@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,7 +19,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import { getQueryStringFromObject, http } from '~helpers';
+import httpService from './http-service';
+import { getQueryStringFromObject } from '~helpers';
 
 const URL_BASE = '/api/feature-flags/';
 
@@ -28,8 +29,14 @@ class FeatureFlagService {
     const queryParams = getQueryStringFromObject(params);
     const url = [URL_BASE, name, queryParams].join('');
 
-    return (await http(window.fetch, url)).value;
+    return (await httpService.get(url)).value;
+  }
+
+  getConfiguration(args) {
+    return this.isFeatureFlagEnabled(args);
   }
 }
 
-export default FeatureFlagService;
+const featureFlagService = new FeatureFlagService();
+
+export default featureFlagService;

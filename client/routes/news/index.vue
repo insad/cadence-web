@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -161,7 +161,7 @@ export default {
 
 <style lang="stylus">
 section.news {
-  height: 100%;
+  flex: 1;
 
   iframe {
     height: 100%

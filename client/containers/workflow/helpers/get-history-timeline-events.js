@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,9 +22,9 @@
 import getEventDetails from './get-event-details';
 import mapTimelineEvents from './map-timeline-events';
 
-const getHistoryTimelineEvents = ({ historyEvents }) =>
-  mapTimelineEvents(historyEvents).map(event => {
-    const details = getEventDetails({ event });
+const getHistoryTimelineEvents = ({ clusterName, historyEvents }) =>
+  mapTimelineEvents({ clusterName, historyEvents }).map(event => {
+    const details = getEventDetails({ clusterName, event });
 
     return { ...event, details };
   });

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,14 +20,17 @@
 // THE SOFTWARE.
 
 import moment from 'moment';
-import fixtures from './fixtures';
+import { getFixture } from './helpers';
 
 describe('Workflow list', () => {
   async function workflowsTest(mochaTest, workflows, query, domainDesc) {
     const [testEl, scenario] = new Scenario(mochaTest)
-      .withDomain('ci-test')
       .startingAt('/domains/ci-test/workflows')
-      .withNewsFeed()
+      .withCluster()
+      .withDomain('ci-test')
+      .withDomainDescription('ci-test', domainDesc)
+      .withEmptyNewsFeed()
+      .withFeatureFlags()
       .withWorkflows({ status: 'open', query, workflows })
       .withWorkflows({
         status: 'closed',
@@ -35,14 +38,11 @@ describe('Workflow list', () => {
         workflows,
         startTimeOffset: 30,
       })
-      .withDomainDescription('ci-test', domainDesc)
       .go();
 
-    const workflowList = await testEl.waitUntilExists(
-      'section.workflow-list.ready'
-    );
+    await testEl.waitUntilExists('section.workflow-list.ready');
 
-    return [workflowList, scenario];
+    return [testEl, scenario];
   }
 
   const demoWf = [
@@ -60,7 +60,7 @@ describe('Workflow list', () => {
     const resultsEl = workflowsEl.querySelector('section.workflow-grid');
 
     workflowsEl
-      .querySelector('div.status .selected-tag')
+      .querySelector('[data-cy="status-filter"] .vs__selected')
       .should.contain.text('All');
 
     await resultsEl.waitUntilExists('.workflow-grid.ready');
@@ -83,6 +83,7 @@ describe('Workflow list', () => {
         'github.com/uber/cadence-web/example-1',
         'email-daily-summaries',
       ]);
+
     resultsEl
       .textNodes('.row > .col-link')
       .should.deep.equal([
@@ -90,6 +91,7 @@ describe('Workflow list', () => {
         'db8da3c0-b7d3-48b7-a9b3-b6f566e58207',
         '51ccc0d1-6ffe-4a7a-a89f-6b5154df86f7',
       ]);
+
     resultsEl
       .attrValues('.row > .col-link a', 'href')
       .should.deep.equal([
@@ -97,6 +99,7 @@ describe('Workflow list', () => {
         '/domains/ci-test/workflows/github.com%2Fuber%2Fcadence-web%2Fexample-1/db8da3c0-b7d3-48b7-a9b3-b6f566e58207/summary',
         '/domains/ci-test/workflows/email-daily-summaries/51ccc0d1-6ffe-4a7a-a89f-6b5154df86f7/summary',
       ]);
+
     resultsEl
       .textNodes('.row > .col-name')
       .should.deep.equal([
@@ -104,25 +107,28 @@ describe('Workflow list', () => {
         'example',
         'github.com/uber/cadence-web/email-daily-summaries-1',
       ]);
+
     resultsEl
       .textNodes('.row > .col-status')
       .should.deep.equal(['open', 'open', 'completed']);
+
     resultsEl
       .textNodes('.row > .col-start')
       .should.deep.equal([
-        ...fixtures.workflows.open.map(wf =>
+        ...getFixture('workflows.open').map(wf =>
           moment(wf.startTime).format('MMM D, YYYY h:mm:ss A')
         ),
-        ...fixtures.workflows.closed.map(wf =>
+        ...getFixture('workflows.closed').map(wf =>
           moment(wf.startTime).format('MMM D, YYYY h:mm:ss A')
         ),
       ]);
+
     resultsEl
       .textNodes('.row > .col-end')
       .should.deep.equal([
         '',
         '',
-        ...fixtures.workflows.closed.map(wf =>
+        ...getFixture('workflows.closed').map(wf =>
           moment(wf.closeTime).format('MMM D, YYYY h:mm:ss A')
         ),
       ]);
@@ -165,7 +171,10 @@ describe('Workflow list', () => {
         },
         workflows: [],
       });
+
     wfIdEl.input('1234');
+
+    await workflowsEl.waitUntilExists('section.workflow-list.ready');
 
     await retry(() =>
       workflowsEl.textNodes('.row > .col-name').should.deep.equal(['demo'])
@@ -174,11 +183,14 @@ describe('Workflow list', () => {
 
   it('should respect query parameters for range and status', async function test() {
     const [testEl] = new Scenario(this.test)
-      .withDomain('ci-test')
       .startingAt(
         '/domains/ci-test/workflows?status=FAILED&range=last-24-hours'
       )
-      .withNewsFeed()
+      .withCluster()
+      .withDomain('ci-test')
+      .withDomainDescription('ci-test')
+      .withEmptyNewsFeed()
+      .withFeatureFlags()
       .withWorkflows({
         status: 'closed',
         query: {
@@ -192,7 +204,6 @@ describe('Workflow list', () => {
           status: 'FAILED',
         },
       })
-      .withDomainDescription('ci-test')
       .go();
 
     await retry(() =>
@@ -240,11 +251,11 @@ describe('Workflow list', () => {
   it('should allow querying by status of the workflow', async function test() {
     const [workflowsEl, scenario] = await workflowsTest(this.test);
     const statusEl = workflowsEl.querySelector(
-      'header.filters .dropdown.status'
+      'header.filters [data-cy="status-filter"]'
     );
 
     await retry(() =>
-      statusEl.querySelector('.selected-tag').should.have.trimmed.text('All')
+      statusEl.querySelector('.vs__selected').should.have.trimmed.text('All')
     );
 
     scenario.withWorkflows({
@@ -333,9 +344,12 @@ describe('Workflow list', () => {
 
   it('should use query parameters from the URL', async function test() {
     const [testEl] = new Scenario(this.test)
-      .withDomain('ci-test')
       .startingAt('/domains/ci-test/workflows?status=FAILED&workflowName=demo')
-      .withNewsFeed()
+      .withCluster()
+      .withDomain('ci-test')
+      .withDomainDescription('ci-test')
+      .withEmptyNewsFeed()
+      .withFeatureFlags()
       .withWorkflows({
         status: 'closed',
         query: {
@@ -343,7 +357,6 @@ describe('Workflow list', () => {
           workflowName: 'demo',
         },
       })
-      .withDomainDescription('ci-test')
       .go();
 
     const workflowsEl = await testEl.waitUntilExists(
@@ -354,24 +367,26 @@ describe('Workflow list', () => {
       .querySelector('header.filters input[name="workflowName"]')
       .value.should.equal('demo');
     workflowsEl
-      .querySelector('header.filters .status .selected-tag')
+      .querySelector('header.filters [data-cy="status-filter"] .vs__selected')
       .should.have.trimmed.text('Failed');
   });
 
   it('should call list API when filterMode = advanced and queryString query params are set', async function test() {
     const [testEl] = new Scenario(this.test)
-      .withDomain('ci-test')
       .startingAt(
         '/domains/ci-test/workflows?status=FAILED&queryString=demo&filterMode=advanced'
       )
-      .withNewsFeed()
+      .withCluster()
+      .withDomain('ci-test')
+      .withDomainDescription('ci-test')
+      .withEmptyNewsFeed()
+      .withFeatureFlags()
       .withWorkflows({
         status: 'list',
         query: {
           queryString: 'demo',
         },
       })
-      .withDomainDescription('ci-test')
       .go();
 
     const workflowsEl = await testEl.waitUntilExists(

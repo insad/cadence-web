@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -50,6 +50,10 @@ export default {
     to: {
       type: Object,
     },
+    width: {
+      type: String,
+      default: '44px',
+    },
   },
   methods: {
     onClick(...args) {
@@ -69,6 +73,7 @@ export default {
     :disabled="disabled"
     :href="href"
     :is="tag"
+    :style="{ 'min-width': width }"
     :to="to"
     @click="onClick"
   >
@@ -90,7 +95,6 @@ export default {
   cursor: pointer;
   display: inline-block;
   font-weight: 500;
-  min-width: 44px;
   padding: 10px;
   transition: all 400ms ease;
   white-space: nowrap;

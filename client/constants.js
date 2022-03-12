@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -75,6 +75,8 @@ export const NOTIFICATION_TYPE_ERROR_MESSAGE_DEFAULT =
 export const NOTIFICATION_TYPE_SUCCESS = 'success';
 export const NOTIFICATION_TYPE_WARNING = 'warning';
 export const NOTIFICATION_TIMEOUT = 5000;
+
+export const ONE_HOUR_IN_MILLISECONDS = 60 * 60 * 1000;
 
 export const TIME_FORMAT_12 = 'TIME_FORMAT_12';
 export const TIME_FORMAT_24 = 'TIME_FORMAT_24';

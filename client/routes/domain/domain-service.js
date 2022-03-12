@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,12 +19,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import { http } from '~helpers';
+import { httpService } from '~services';
 
 export default () => {
   return {
     getDomainSettings: domainName => {
-      return http(window.fetch, `/api/domains/${domainName}`);
+      return httpService.get(`/api/domains/${domainName}`);
     },
   };
 };

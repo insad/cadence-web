@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,6 +22,7 @@
 
 import PartitionTable from './components/partition-table';
 import { FlexGrid, FlexGridItem } from '~components';
+import { httpService } from '~services';
 
 export default {
   name: 'partition',
@@ -33,7 +34,7 @@ export default {
   },
   props: ['domain', 'taskList'],
   async created() {
-    const partitions = await this.$http(
+    const partitions = await httpService.get(
       `/api/domains/${this.domain}/task-lists/${this.taskList}/partitions`
     );
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,23 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-const { CLUSTER_CACHE_TTL } = require('../constants');
-
-let cache = null;
-
-const clusterHandler = async ctx => {
-  if (cache) {
-    return (ctx.body = cache);
-  }
-
-  const cluster = await ctx.cadence.describeCluster();
-
-  cache = { ...cluster, membershipInfo: null };
-  ctx.body = cache;
-
-  // This timeout will clear cache after TTL period.
-  // It will fetch a new value on the next request to clusterHandler.
-  setTimeout(() => (cache = null), CLUSTER_CACHE_TTL);
-};
+const clusterHandler = clusterService => async ctx =>
+  (ctx.body = await clusterService.getCluster(ctx));
 
 module.exports = clusterHandler;

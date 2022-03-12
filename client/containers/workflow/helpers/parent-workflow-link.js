@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,18 +19,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-export default function(wfStartDetails) {
-  if (wfStartDetails && wfStartDetails.parentWorkflowExecution) {
+export default function({ clusterName, eventDetails }) {
+  if (eventDetails && eventDetails.parentWorkflowExecution) {
     return {
       to: {
         name: 'workflow/summary',
         params: {
-          domain: wfStartDetails.parentWorkflowDomain,
-          workflowId: wfStartDetails.parentWorkflowExecution.workflowId,
-          runId: wfStartDetails.parentWorkflowExecution.runId,
+          clusterName,
+          domain: eventDetails.parentWorkflowDomain,
+          workflowId: eventDetails.parentWorkflowExecution.workflowId,
+          runId: eventDetails.parentWorkflowExecution.runId,
         },
       },
-      text: wfStartDetails.parentWorkflowExecution.workflowId,
+      text: eventDetails.parentWorkflowExecution.workflowId,
     };
   }
 

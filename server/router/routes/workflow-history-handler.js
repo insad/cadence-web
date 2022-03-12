@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,9 +25,7 @@ const workflowHistoryHandler = async ctx => {
   const q = ctx.query || {};
 
   ctx.body = await ctx.cadence.getHistory({
-    nextPageToken: q.nextPageToken
-      ? Buffer.from(q.nextPageToken, 'base64')
-      : undefined,
+    nextPageToken: q.nextPageToken,
     waitForNewEvent: 'waitForNewEvent' in q ? true : undefined,
   });
 

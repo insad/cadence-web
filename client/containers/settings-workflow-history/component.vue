@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,6 +27,7 @@ import {
   FeatureFlag,
   FlexGrid,
   FlexGridItem,
+  SelectInput,
   SettingsFooter,
   SettingsToggle,
   TextInput,
@@ -145,6 +146,7 @@ export default {
     'feature-flag': FeatureFlag,
     'flex-grid': FlexGrid,
     'flex-grid-item': FlexGridItem,
+    'select-input': SelectInput,
     'settings-footer': SettingsFooter,
     'settings-toggle': SettingsToggle,
     'text-input': TextInput,
@@ -204,14 +206,16 @@ export default {
               <flex-grid-item grow="1">
                 <flex-grid align-items="center">
                   <flex-grid-item grow="1" width="345px">
-                    <v-select
+                    <select-input
                       :disabled="
                         !modalWorkflowHistoryEventHighlightListEnabled ||
                           !event.isEnabled
                       "
-                      :value="event.eventType"
+                      label="Event type"
+                      name="eventType"
                       :options="workflowEventTypes"
-                      :on-change="
+                      :value="event.eventType"
+                      @change="
                         value =>
                           onWorkflowHistoryEventHighlightListChange({
                             event,

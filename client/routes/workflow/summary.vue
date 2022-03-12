@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,7 +24,7 @@ import { TERMINATE_DEFAULT_ERROR_MESSAGE } from './constants';
 import { NOTIFICATION_TYPE_ERROR, NOTIFICATION_TYPE_SUCCESS } from '~constants';
 import { getErrorMessage, getDatetimeFormattedString } from '~helpers';
 import { BarLoader, ButtonFill, DataViewer, DetailList } from '~components';
-import { FeatureFlagService } from '~services';
+import { featureFlagService, httpService } from '~services';
 
 export default {
   data() {
@@ -36,6 +36,7 @@ export default {
   },
   props: [
     'baseAPIURL',
+    'clusterName',
     'dateFormat',
     'displayWorkflowId',
     'domain',
@@ -56,8 +57,7 @@ export default {
     'detail-list': DetailList,
   },
   async mounted() {
-    this.featureFlagService = new FeatureFlagService();
-    this.isWorkflowTerminateFeatureFlagEnabled = await this.featureFlagService.isFeatureFlagEnabled(
+    this.isWorkflowTerminateFeatureFlagEnabled = await featureFlagService.isFeatureFlagEnabled(
       { name: 'workflowTerminate' }
     );
     this.initAuthorization();
@@ -104,7 +104,7 @@ export default {
       const { domain } = this;
 
       try {
-        const response = await this.$http(
+        const response = await httpService.get(
           `/api/domains/${domain}/authorization`
         );
 
@@ -117,7 +117,7 @@ export default {
       }
     },
     async initAuthorization() {
-      const isDomainAuthorizationFeatureFlagEnabled = await this.featureFlagService.isFeatureFlagEnabled(
+      const isDomainAuthorizationFeatureFlagEnabled = await featureFlagService.isFeatureFlagEnabled(
         { name: 'domainAuthorization' }
       );
 
@@ -131,7 +131,7 @@ export default {
     },
     terminate() {
       this.$modal.hide('confirm-termination');
-      this.$http
+      httpService
         .post(`${this.baseAPIURL}/terminate`, {
           reason: this.terminationReason,
         })
@@ -257,6 +257,7 @@ export default {
             :to="{
               name: 'task-list',
               params: {
+                clusterName,
                 taskList: workflow.executionConfiguration.taskList.name,
               },
             }"

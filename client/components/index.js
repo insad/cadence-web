@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 // Portions of the Software are attributed to Copyright (c) 2020 Temporal Technologies Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,6 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+export { default as Autocomplete } from './autocomplete';
 export { default as BarLoader } from './bar-loader';
 export { default as ButtonFill } from './button-fill';
 export { default as ButtonGroup } from './button-group';
@@ -27,7 +28,6 @@ export { default as Copy } from './copy';
 export { default as DataViewer } from './data-viewer';
 export { default as DateRangePicker } from './date-range-picker';
 export { default as DetailList } from './detail-list';
-export { default as DomainNavigation } from './domain-navigation';
 export { default as ErrorMessage } from './error-message';
 export { default as FeatureFlag } from './feature-flag';
 export { default as FlexGrid } from './flex-grid';
@@ -40,6 +40,7 @@ export { default as NavigationLink } from './navigation-link';
 export { default as NewsModal } from './news-modal';
 export { default as NoResults } from './no-results';
 export { default as NotificationBar } from './notification-bar';
+export { default as SelectInput } from './select-input';
 export { default as SettingsFooter } from './settings-footer';
 export { default as SettingsToggle } from './settings-toggle';
 export { default as TextInput } from './text-input';

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,6 +20,9 @@
 // THE SOFTWARE.
 
 const buildQueryString = require('./build-query-string');
+const delay = require('./delay');
+const injectDomainIntoWorkflowList = require('./inject-domain-into-workflow-list');
+const isAdvancedVisibilityEnabled = require('./is-advanced-visibility-enabled');
 const listWorkflows = require('./list-workflows');
 const mapHistoryResponse = require('./map-history-response');
 const momentToLong = require('./moment-to-long');
@@ -27,6 +30,9 @@ const replacer = require('./replacer');
 
 module.exports = {
   buildQueryString,
+  delay,
+  injectDomainIntoWorkflowList,
+  isAdvancedVisibilityEnabled,
   listWorkflows,
   mapHistoryResponse,
   momentToLong,

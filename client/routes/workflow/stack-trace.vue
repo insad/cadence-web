@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 // Portions of the Software are attributed to Copyright (c) 2020 Temporal Technologies Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,6 +22,7 @@
 
 import { getQueryResult } from './helpers';
 import { getDatetimeFormattedString } from '~helpers';
+import { httpService } from '~services';
 
 export default {
   data() {
@@ -33,6 +34,7 @@ export default {
   },
   props: [
     'baseAPIURL',
+    'clusterName',
     'dateFormat',
     'isWorkerRunning',
     'taskListName',
@@ -64,7 +66,7 @@ export default {
     getStackTrace() {
       this.loading = true;
 
-      return this.$http
+      return httpService
         .post(`${this.baseAPIURL}/query/__stack_trace`)
         .then(({ queryResult }) => {
           this.stackTrace = getQueryResult(queryResult);
@@ -118,6 +120,7 @@ export default {
         :to="{
           name: 'task-list',
           params: {
+            clusterName,
             taskList: taskListName,
           },
         }"

@@ -1,6 +1,6 @@
 <script>
-// Modifications Copyright (c) 2021 Uber Technologies Inc.
-// Copyright (c) 2020-2021 Temporal Technologies, Inc.
+// Modifications Copyright (c) 2021-2022 Uber Technologies Inc.
+// Copyright (c) 2020-2022 Temporal Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -82,7 +82,12 @@ export default {
           <router-link
             :to="{
               name: 'workflow/summary',
-              params: { runId: item.runId, workflowId: item.workflowId },
+              params: {
+                clusterName: item.clusterName,
+                domain: item.domainName,
+                runId: item.runId,
+                workflowId: item.workflowId,
+              },
             }"
             data-cy="workflow-link"
             >{{ item.runId }}

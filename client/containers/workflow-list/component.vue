@@ -1,6 +1,6 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
-// Portions of the Software are attributed to Copyright (c) 2020-2021 Temporal Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
+// Portions of the Software are attributed to Copyright (c) 2020-2022 Temporal Technologies Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,44 +23,76 @@
 import moment from 'moment';
 import debounce from 'lodash-es/debounce';
 import {
+  IS_CRON_LIST,
+  FILTER_MODE_ADVANCED,
+  STATE_ALL,
+  STATE_CLOSED,
+  STATE_OPEN,
+  STATUS_ALL,
+  STATUS_CLOSED,
+  STATUS_LIST,
+  STATUS_OPEN,
+} from './constants';
+import {
+  getCriteria,
+  getFormattedResults,
+  getMinStartDate,
+  isRangeValid,
+  isRouteRangeValid,
+} from './helpers';
+import {
   ButtonFill,
   DateRangePicker,
   ErrorMessage,
+  FeatureFlag,
+  FlexGrid,
+  FlexGridItem,
+  SelectInput,
   TextInput,
   WorkflowGrid,
 } from '~components';
-import {
-  getDatetimeFormattedString,
-  getEndTimeIsoString,
-  getStartTimeIsoString,
-} from '~helpers';
+import { delay, getEndTimeIsoString, getStartTimeIsoString } from '~helpers';
+import { httpService } from '~services';
 
 export default {
-  props: ['dateFormat', 'domain', 'timeFormat', 'timezone'],
+  name: 'workflow-list',
+  props: [
+    'clusterName',
+    'dateFormat',
+    'domain',
+    'fetchWorkflowListUrl',
+    'filterBy',
+    'filterMode',
+    'filterModeButtonEnabled',
+    'filterModeButtonLabel',
+    'isCron',
+    'isCronInputVisible',
+    'queryString',
+    'state',
+    'status',
+    'statusName',
+    'timeFormat',
+    'timezone',
+    'workflowId',
+    'workflowName',
+  ],
   data() {
     return {
+      abortController: undefined,
+      isCronList: IS_CRON_LIST,
       loading: false,
       results: [],
       error: undefined,
       npt: undefined,
       nptAlt: undefined,
-      statusList: [
-        { value: 'ALL', label: 'All' },
-        { value: 'OPEN', label: 'Open' },
-        { value: 'CLOSED', label: 'Closed' },
-        { value: 'COMPLETED', label: 'Completed' },
-        { value: 'FAILED', label: 'Failed' },
-        { value: 'CANCELED', label: 'Cancelled' },
-        { value: 'TERMINATED', label: 'Terminated' },
-        { value: 'CONTINUED_AS_NEW', label: 'Continued As New' },
-        { value: 'TIMED_OUT', label: 'Timed Out' },
-      ],
+      statusList: STATUS_LIST,
       maxRetentionDays: undefined,
+      FILTER_MODE_ADVANCED: FILTER_MODE_ADVANCED,
     };
   },
   async created() {
     await this.fetchDomain();
-    this.fetchWorkflows();
+    this.fetchWorkflowList();
   },
   mounted() {
     this.interval = setInterval(() => {
@@ -74,98 +106,72 @@ export default {
     'button-fill': ButtonFill,
     'date-range-picker': DateRangePicker,
     'error-message': ErrorMessage,
+    'feature-flag': FeatureFlag,
+    'flex-grid': FlexGrid,
+    'flex-grid-item': FlexGridItem,
+    'select-input': SelectInput,
     'text-input': TextInput,
     'workflow-grid': WorkflowGrid,
   },
   computed: {
-    fetchUrl() {
-      const { domain, filterMode, state } = this;
+    criteria() {
+      const {
+        endTime,
+        filterMode,
+        isCron,
+        queryString,
+        startTime,
+        statusName: status,
+        workflowId,
+        workflowName,
+      } = this;
 
-      if (filterMode === 'advanced') {
-        return `/api/domains/${domain}/workflows/list`;
-      }
-
-      return `/api/domains/${domain}/workflows/${state}`;
+      return getCriteria({
+        endTime,
+        filterMode,
+        isCron,
+        queryString,
+        startTime,
+        status,
+        workflowId,
+        workflowName,
+      });
     },
     endTime() {
-      const { endTime, range } = this.$route.query;
+      const { range, endTime } = this.$route.query;
+
+      if (this.range && this.range.endTime) {
+        return getEndTimeIsoString(null, this.range.endTime.toISOString());
+      }
 
       return getEndTimeIsoString(range, endTime);
     },
-    filterBy() {
-      return ['ALL', 'OPEN'].includes(this.status.value)
-        ? 'StartTime'
-        : 'CloseTime';
-    },
-    filterMode() {
-      return this.$route.query.filterMode || 'basic';
-    },
-    filterModeButtonLabel() {
-      return this.filterMode === 'advanced' ? 'basic' : 'advanced';
-    },
     formattedResults() {
-      const { dateFormat, results, timeFormat, timezone } = this;
+      const { clusterName, dateFormat, results, timeFormat, timezone } = this;
 
-      return results.map(result => ({
-        workflowId: result.execution.workflowId,
-        runId: result.execution.runId,
-        uniqueId: `${result.execution.runId}-${result.closeStatus || 'OPEN'}`,
-        workflowName: result.type.name,
-        startTime: getDatetimeFormattedString({
-          date: result.startTime,
-          dateFormat,
-          timeFormat,
-          timezone,
-        }),
-        endTime: result.closeTime
-          ? getDatetimeFormattedString({
-              date: result.closeTime,
-              dateFormat,
-              timeFormat,
-              timezone,
-            })
-          : '',
-        status: (result.closeStatus || 'open').toLowerCase(),
-      }));
+      return getFormattedResults({
+        clusterName,
+        dateFormat,
+        results,
+        timeFormat,
+        timezone,
+      });
     },
-    startTime() {
-      const { range, startTime } = this.$route.query;
-
-      if (this.range && this.range.startTime) {
-        return getStartTimeIsoString(null, this.range.startTime.toISOString());
-      }
-
-      return getStartTimeIsoString(range, startTime);
-    },
-    state() {
-      const { statusName } = this;
-
-      if (!this.statusName || statusName == 'ALL') {
-        return 'all';
-      }
-
-      return statusName === 'OPEN' ? 'open' : 'closed';
-    },
-    status() {
-      return !this.$route.query || !this.$route.query.status
-        ? this.statusList[0]
-        : this.statusList.find(s => s.value === this.$route.query.status);
-    },
-    statusName() {
-      return this.status.value;
+    minStartDate() {
+      return this.getMinStartDate();
     },
     range() {
-      const { state } = this;
+      const { maxRetentionDays, minStartDate, state } = this;
       const query = this.$route.query || {};
 
-      if (state === 'closed' && this.maxRetentionDays === undefined) {
+      if (state === STATE_CLOSED && maxRetentionDays === undefined) {
         return null;
       }
 
-      if (!this.isRouteRangeValid(this.minStartDate)) {
-        const defaultRange = ['all', 'open'].includes(state)
+      if (!this.isRouteRangeValid(minStartDate)) {
+        const defaultRange = [STATE_ALL, STATE_OPEN].includes(state)
           ? 30
-          : this.maxRetentionDays;
+          : maxRetentionDays;
         const updatedQuery = this.setRange(
           `last-${Math.min(30, defaultRange)}-days`
         );
@@ -184,48 +190,19 @@ export default {
           }
         : query.range;
     },
-    criteria() {
-      const {
-        endTime,
-        filterMode,
-        queryString,
-        startTime,
-        statusName: status,
-        workflowId,
-        workflowName,
-      } = this;
+    startTime() {
+      const { range, startTime } = this.$route.query;
 
-      if (!startTime || !endTime) {
-        return null;
+      if (this.range && this.range.startTime) {
+        return getStartTimeIsoString(null, this.range.startTime.toISOString());
       }
 
-      if (filterMode === 'advanced') {
-        return {
-          queryString: queryString.trim(),
-        };
-      }
+      return getStartTimeIsoString(range, startTime);
+    },
+    crossRegionProps() {
+      const { clusterName, domain } = this;
 
-      const criteria = {
-        startTime,
-        endTime,
-        status,
-        ...(workflowId && { workflowId: workflowId.trim() }),
-        ...(workflowName && { workflowName: workflowName.trim() }),
-      };
-
-      return criteria;
-    },
-    queryString() {
-      return this.$route.query.queryString || '';
-    },
-    minStartDate() {
-      return this.getMinStartDate();
-    },
-    workflowId() {
-      return this.$route.query.workflowId;
-    },
-    workflowName() {
-      return this.$route.query.workflowName;
+      return { clusterName, domain };
     },
   },
   methods: {
@@ -244,37 +221,61 @@ export default {
         return { workflows, nextPageToken };
       }
 
-      this.loading = true;
-      this.error = undefined;
-
-      const includeStatus = !['ALL', 'OPEN', 'CLOSED'].includes(
+      const includeStatus = ![STATUS_ALL, STATUS_OPEN, STATUS_CLOSED].includes(
         queryWithStatus.status
       );
       const { status, ...queryWithoutStatus } = queryWithStatus;
       const query = includeStatus ? queryWithStatus : queryWithoutStatus;
 
       try {
-        const res = await this.$http(url, { query });
+        if (this.abortController) {
+          this.abortController.abort();
+          await delay();
+        }
 
-        workflows = res.executions;
+        this.error = undefined;
+        this.loading = true;
 
-        nextPageToken = res.nextPageToken;
-      } catch (e) {
-        this.error = (e.json && e.json.message) || e.status || e.message;
+        this.abortController = new AbortController();
+        const { signal } = this.abortController;
+
+        const request = await httpService.get(url, {
+          query,
+          signal,
+        });
+
+        this.abortController = undefined;
+
+        workflows = request.executions;
+
+        nextPageToken = request.nextPageToken;
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          return { status: 'aborted' };
+        }
+
+        this.error =
+          (error.json && error.json.message) || error.status || error.message;
+
+        return { status: 'error' };
+      } finally {
+        this.loading = false;
       }
 
-      this.loading = false;
-
-      return { workflows, nextPageToken };
+      return { status: 'success', workflows, nextPageToken };
     },
-    fetchDomain() {
-      const { domain } = this;
+    async fetchDomain() {
+      const { domain, now } = this;
 
       this.loading = true;
 
-      return this.$http(`/api/domains/${domain}`).then(r => {
+      try {
+        const domainInfo = await httpService.get(`/api/domains/${domain}`);
+
         this.maxRetentionDays =
-          Number(r.configuration.workflowExecutionRetentionPeriodInDays) || 30;
+          Number(
+            domainInfo.configuration.workflowExecutionRetentionPeriodInDays
+          ) || 30;
         this.loading = false;
 
         const minStartDate = this.getMinStartDate();
@@ -284,20 +285,31 @@ export default {
             `${domain}:workflows-time-range`
           );
 
-          if (prevRange && this.isRangeValid(prevRange, minStartDate)) {
+          if (
+            prevRange &&
+            isRangeValid({ minStartDate, now, range: prevRange })
+          ) {
             this.setRange(prevRange);
           } else {
             this.setRange(`last-${Math.min(30, this.maxRetentionDays)}-days`);
           }
         }
-      });
+      } catch (error) {
+        this.error =
+          (error.json && error.json.message) || error.status || error.message;
+      } finally {
+        this.loading = false;
+      }
     },
-    async fetchWorkflows() {
+    async fetchWorkflowList() {
       if (!this.criteria || this.loading) {
         return;
       }
 
-      if (this.filterMode === 'advanced' && !this.criteria.queryString) {
+      if (
+        this.filterMode === FILTER_MODE_ADVANCED &&
+        !this.criteria.queryString
+      ) {
         this.clearState();
 
         return;
@@ -305,17 +317,24 @@ export default {
 
       let workflows = [];
 
-      if (this.state !== 'all' || this.filterMode === 'advanced') {
+      if (
+        this.state !== STATE_ALL ||
+        this.filterMode === FILTER_MODE_ADVANCED
+      ) {
         const query = { ...this.criteria, nextPageToken: this.npt };
 
         if (query.queryString) {
           query.queryString = decodeURI(query.queryString);
         }
 
-        const { workflows: wfs, nextPageToken } = await this.fetch(
-          this.fetchUrl,
+        const { status, workflows: wfs, nextPageToken } = await this.fetch(
+          this.fetchWorkflowListUrl,
           query
         );
+
+        if (status !== 'success') {
+          return;
+        }
 
         workflows = wfs;
         this.npt = nextPageToken;
@@ -324,20 +343,33 @@ export default {
         const queryOpen = { ...this.criteria, nextPageToken: this.npt };
         const queryClosed = { ...this.criteria, nextPageToken: this.nptAlt };
 
-        const { workflows: wfsOpen, nextPageToken: nptOpen } = await this.fetch(
+        const {
+          status: openStatus,
+          workflows: wfsOpen,
+          nextPageToken: nptOpen,
+        } = await this.fetch(
           `/api/domains/${domain}/workflows/open`,
           queryOpen
         );
 
+        if (openStatus !== 'success') {
+          return;
+        }
+
         this.npt = nptOpen;
 
         const {
+          status: closedStatus,
           workflows: wfsClosed,
           nextPageToken: nptClosed,
         } = await this.fetch(
           `/api/domains/${domain}/workflows/closed`,
           queryClosed
         );
+
+        if (closedStatus !== 'success') {
+          return;
+        }
 
         this.nptAlt = nptClosed;
 
@@ -347,88 +379,61 @@ export default {
       this.results = [...this.results, ...workflows];
     },
     getMinStartDate() {
-      const {
+      const { maxRetentionDays, now, statusName } = this;
+
+      return getMinStartDate({
         maxRetentionDays,
-        status: { value: status },
-      } = this;
+        now,
+        statusName,
+      });
+    },
+    isRouteRangeValid(minStartDate) {
+      const { now } = this;
+      const { endTime, range, startTime } = this.$route.query || {};
 
-      if (['OPEN', 'ALL'].includes(status)) {
-        return null;
-      }
-
-      return moment(this.now)
-        .subtract(maxRetentionDays, 'days')
-        .startOf('days');
+      return isRouteRangeValid({
+        endTime,
+        minStartDate,
+        now,
+        range,
+        startTime,
+      });
     },
     refreshWorkflows: debounce(
       function refreshWorkflows() {
         this.clearState();
-        this.fetchWorkflows();
+        this.fetchWorkflowList();
       },
       typeof Mocha === 'undefined' ? 200 : 60,
       { maxWait: 1000 }
     ),
-    onFilterChange(e) {
-      const target = e.target || e.testTarget; // test hook since Event.target is readOnly and unsettable
+    onFilterChange(event) {
+      const target = event.target || event.testTarget; // test hook since Event.target is readOnly and unsettable
+      const name = target.getAttribute('name');
+      const value = target.value;
 
-      this.$router.replaceQueryParam(target.getAttribute('name'), target.value);
+      this.$emit('onFilterChange', { [name]: value });
+    },
+    onIsCronChange(isCron) {
+      if (isCron) {
+        this.$emit('onFilterChange', { isCron: isCron.value });
+      }
     },
     onStatusChange(status) {
       if (status) {
-        this.$router.replace({
-          query: { ...this.$route.query, status: status.value },
-        });
+        this.$emit('onFilterChange', { status: status.value });
       }
     },
-    isRangeValid(range, minStartDate) {
-      if (typeof range === 'string') {
-        const [, count, unit] = range.split('-');
-        let startTime;
-
-        try {
-          startTime = moment()
-            .subtract(count, unit)
-            .startOf(unit);
-        } catch (e) {
-          return false;
-        }
-
-        if (minStartDate && startTime < minStartDate) {
-          return false;
-        }
-
-        return true;
-      }
-
-      if (range.startTime && range.endTime) {
-        const startTime = moment(range.startTime);
-        const endTime = moment(range.endTime);
-
-        if (startTime > endTime) {
-          return false;
-        }
-
-        if (minStartDate && startTime < minStartDate) {
-          return false;
-        }
-
-        return true;
-      }
-
-      return false;
+    onFilterModeClick() {
+      this.clearState();
+      this.$emit('onFilterModeClick');
     },
-    isRouteRangeValid(minStartDate) {
-      const { endTime, range, startTime } = this.$route.query || {};
-
-      if (range) {
-        return this.isRangeValid(range, minStartDate);
+    onWorkflowGridScroll(startIndex, endIndex) {
+      if (!this.npt && !this.nptAlt) {
+        return;
       }
 
-      if (startTime && endTime) {
-        return this.isRangeValid({ endTime, startTime }, minStartDate);
-      }
-
-      return false;
+      return this.fetchWorkflowList();
     },
     setRange(range) {
       const query = { ...this.$route.query };
@@ -454,21 +459,6 @@ export default {
 
       return query;
     },
-    onFilterModeClick() {
-      const { query } = this.$route;
-
-      this.clearState();
-      const filterMode = this.filterMode === 'advanced' ? 'basic' : 'advanced';
-
-      this.$router.replace({ query: { ...query, filterMode } });
-    },
-    onWorkflowGridScroll(startIndex, endIndex) {
-      if (!this.npt && !this.nptAlt) {
-        return;
-      }
-
-      return this.fetchWorkflows();
-    },
   },
   watch: {
     criteria(newCriteria, oldCriteria) {
@@ -477,6 +467,7 @@ export default {
         oldCriteria &&
         (newCriteria.startTime !== oldCriteria.startTime ||
           newCriteria.endTime !== oldCriteria.endTime ||
+          newCriteria.isCron !== oldCriteria.isCron ||
           newCriteria.queryString !== oldCriteria.queryString ||
           newCriteria.status !== oldCriteria.status ||
           newCriteria.workflowId !== oldCriteria.workflowId ||
@@ -485,6 +476,10 @@ export default {
         this.refreshWorkflows();
       }
     },
+    async crossRegionProps() {
+      await this.fetchDomain();
+      this.refreshWorkflows();
+    },
   },
 };
 </script>
@@ -492,57 +487,101 @@ export default {
 <template>
   <section class="workflow-list" :class="{ loading, ready: !loading }">
     <header class="filters">
-      <template v-if="filterMode === 'advanced'">
-        <text-input
-          label="Query"
-          type="search"
-          name="queryString"
-          :value="queryString"
-          @input="onFilterChange"
-        />
+      <template v-if="filterMode === FILTER_MODE_ADVANCED">
+        <flex-grid width="100%">
+          <flex-grid-item grow="1">
+            <text-input
+              label="Query"
+              type="search"
+              name="queryString"
+              :value="queryString"
+              @input="onFilterChange"
+            />
+          </flex-grid-item>
+          <flex-grid-item>
+            <button-fill
+              @click="onFilterModeClick"
+              disabledLabel="Advanced visibility is not enabled"
+              :enabled="filterModeButtonEnabled"
+              :label="filterModeButtonLabel"
+              uppercase
+            />
+          </flex-grid-item>
+        </flex-grid>
       </template>
       <template v-else>
-        <text-input
-          label="Workflow ID"
-          type="search"
-          name="workflowId"
-          :value="workflowId"
-          @input="onFilterChange"
-        />
-        <text-input
-          label="Workflow Name"
-          type="search"
-          name="workflowName"
-          :value="workflowName"
-          @input="onFilterChange"
-        />
-        <v-select
-          class="status"
-          :value="status"
-          :options="statusList"
-          :on-change="onStatusChange"
-          :searchable="false"
-          data-cy="status-filter"
-        />
-        <text-input
-          label="Filter by"
-          max-width="105px"
-          name="filterBy"
-          readonly
-          :value="filterBy"
-        />
-        <date-range-picker
-          :date-range="range"
-          :max-days="maxRetentionDays"
-          :min-start-date="minStartDate"
-          @change="setRange"
-        />
+        <flex-grid width="100%">
+          <flex-grid-item grow="1">
+            <text-input
+              label="Workflow ID"
+              type="search"
+              name="workflowId"
+              :value="workflowId"
+              @input="onFilterChange"
+            />
+          </flex-grid-item>
+          <flex-grid-item grow="1">
+            <text-input
+              label="Workflow Name"
+              type="search"
+              name="workflowName"
+              :value="workflowName"
+              @input="onFilterChange"
+            />
+          </flex-grid-item>
+          <flex-grid-item grow="1" width="160px">
+            <select-input
+              data-cy="status-filter"
+              label="Status"
+              name="status"
+              :options="statusList"
+              :value="status"
+              @change="onStatusChange"
+            />
+          </flex-grid-item>
+          <feature-flag
+            grow="1"
+            margin="5px"
+            name="workflowListIsCron"
+            v-if="isCronInputVisible"
+            width="115px"
+          >
+            <select-input
+              label="Cron"
+              name="isCron"
+              :options="isCronList"
+              :value="isCron"
+              @change="onIsCronChange"
+            />
+          </feature-flag>
+          <flex-grid-item grow="1" width="105px">
+            <text-input
+              label="Filter by"
+              max-width="100%"
+              name="filterBy"
+              readonly
+              :value="filterBy"
+            />
+          </flex-grid-item>
+          <flex-grid-item>
+            <date-range-picker
+              :date-range="range"
+              :max-days="maxRetentionDays"
+              :min-start-date="minStartDate"
+              @change="setRange"
+            />
+          </flex-grid-item>
+          <flex-grid-item>
+            <button-fill
+              @click="onFilterModeClick"
+              disabledLabel="Advanced visibility is not enabled"
+              :enabled="filterModeButtonEnabled"
+              :label="filterModeButtonLabel"
+              uppercase
+            />
+          </flex-grid-item>
+        </flex-grid>
       </template>
-      <button-fill
-        @click="onFilterModeClick"
-        :label="filterModeButtonLabel"
-        uppercase
-      />
     </header>
     <error-message :error="error" />
     <workflow-grid
@@ -561,27 +600,6 @@ section.workflow-list
   display: flex;
   flex: auto;
   flex-direction: column;
-
-  .filters
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-
-    > .field
-      flex 1 1 auto
-      margin-right: 5px;
-
-    .date-range-picker {
-      margin-right: 5px;
-    }
-
-    .dropdown {
-      margin-right: 5px;
-    }
-
-    .status {
-      width: 160px;
-    }
 
   &.loading section.results table
     opacity 0.7

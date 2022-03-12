@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,8 +23,9 @@ describe('Domain Settings', () => {
   async function domainConfigTest(mochaTest, desc) {
     const [testEl, scenario] = new Scenario(mochaTest)
       .withDomain('ci-test')
-      .startingAt('/domains/ci-test/config')
-      .withNewsFeed()
+      .startingAt('/domains/ci-test/settings')
+      .withFeatureFlags()
+      .withEmptyNewsFeed()
       .withDomainDescription('ci-test', desc)
       .go();
 

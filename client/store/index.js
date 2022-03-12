@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 Uber Technologies Inc.
+// Copyright (c) 2020-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,7 +22,37 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
 import VuexPersistence from 'vuex-persist';
+import { sync } from 'vuex-router-sync';
 import {
+  // active status
+  activeStatusActions,
+  activeStatusGetters,
+
+  // cluster
+  clusterActions,
+  getClusterDefaultState,
+  clusterGetters,
+  clusterMutations,
+
+  // cross region
+  crossRegionActions,
+  getCrossRegionDefaultState,
+  crossRegionGetters,
+  crossRegionMutations,
+
+  // domain
+  domainActions,
+  getDomainDefaultState,
+  domainGetters,
+  domainMutations,
+
+  // domain autocomplete
+  domainAutocompleteActions,
+  getDomainAutocompleteDefaultState,
+  domainAutocompleteGetters,
+  domainAutocompleteMutations,
+  domainAutocompleteReducer,
+
   // graph
   getGraphDefaultState,
   graphGetters,
@@ -55,6 +85,12 @@ import {
 } from '~containers';
 
 const getDefaultState = (state = {}) => ({
+  cluster: getClusterDefaultState(state.cluster),
+  crossRegion: getCrossRegionDefaultState(state.crossRegion),
+  domain: getDomainDefaultState(state.domain),
+  domainAutocomplete: getDomainAutocompleteDefaultState(
+    state.domainAutocomplete
+  ),
   graph: getGraphDefaultState(state.graph),
   settingsWorkflowHistory: getSettingsWorkflowHistoryDefaultState(
     state.settingsWorkflowHistory
@@ -67,22 +103,50 @@ const getStoreConfig = ({ router, state }) => {
   const initialState = getDefaultState(state);
 
   const vuexLocal = new VuexPersistence({
+    restoreState: key => {
+      const state = JSON.tryParse(localStorage.getItem(key));
+
+      if (!state) {
+        return;
+      }
+
+      // ensures these states do not persist to local storage.
+      const crossRegion = getCrossRegionDefaultState();
+      const domain = getDomainDefaultState();
+
+      const domainAutocomplete = domainAutocompleteReducer(
+        state.domainAutocomplete
+      );
+
+      return {
+        ...state,
+        crossRegion,
+        domain,
+        ...(domainAutocomplete && {
+          domainAutocomplete,
+        }),
+      };
+    },
     storage: window.localStorage,
   });
 
   const storeConfig = {
-    state: initialState,
     actions: {
+      ...activeStatusActions,
+      ...clusterActions,
+      ...crossRegionActions,
+      ...domainActions,
+      ...domainAutocompleteActions,
       ...routeActionCreator(router),
       ...workflowListActions,
       ...workflowPendingActions,
     },
-    mutations: {
-      ...graphMutations,
-      ...settingsWorkflowHistoryMutations,
-      ...workflowMutations,
-    },
     getters: {
+      ...activeStatusGetters,
+      ...clusterGetters,
+      ...crossRegionGetters,
+      ...domainGetters,
+      ...domainAutocompleteGetters,
       ...graphGetters,
       ...routeGetters,
       ...settingsWorkflowHistoryGetters,
@@ -90,7 +154,17 @@ const getStoreConfig = ({ router, state }) => {
       ...workflowListGetters,
       ...workflowPendingGetters,
     },
+    mutations: {
+      ...clusterMutations,
+      ...crossRegionMutations,
+      ...domainMutations,
+      ...domainAutocompleteMutations,
+      ...graphMutations,
+      ...settingsWorkflowHistoryMutations,
+      ...workflowMutations,
+    },
     plugins: [vuexLocal.plugin],
+    state: initialState,
   };
 
   return storeConfig;
@@ -101,6 +175,8 @@ const initStore = ({ router, state }) => {
 
   const storeConfig = getStoreConfig({ router, state });
   const store = new Vuex.Store(storeConfig);
+
+  sync(store, router);
 
   return store;
 };

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,8 +19,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+import MockDate from 'mockdate';
 import moment from 'moment';
-import fixtures from './fixtures';
+import { getFixture } from './helpers';
 
 describe('Workflow', () => {
   function workflowTest(mochaTest, options) {
@@ -35,17 +36,8 @@ describe('Workflow', () => {
       new Scenario(mochaTest)
         .withDomain('ci-test')
         .withDomainAuthorization('ci-test', true)
-        .withFeatureFlags([
-          {
-            key: 'domainAuthorization',
-            value: false,
-          },
-          {
-            key: 'workflowTerminate',
-            value: true,
-          },
-        ])
-        .withNewsFeed()
+        .withFeatureFlags()
+        .withEmptyNewsFeed()
         .withStoreState({
           workflowHistory: {
             graphEnabled: true,
@@ -68,18 +60,25 @@ describe('Workflow', () => {
     ];
   }
 
-  async function summaryTest(mochaTest, o) {
+  async function summaryTest(mochaTest, options = {}, loading) {
     const [scenario, opts] = workflowTest(mochaTest, {
       view: 'summary',
-      ...o,
+      ...options,
     });
 
-    scenario.withFullHistory(opts.events);
+    scenario.withFullHistory(opts.events, options.history);
+
     const summaryEl = await scenario
       .render(opts.attach)
-      .waitUntilExists('section.execution section.workflow-summary dl');
+      .waitUntilExists(`section.execution.${loading ? 'loading' : 'ready'}`);
+
+    await summaryEl.waitUntilExists('section.workflow-summary dl');
 
     return [summaryEl.parentElement, scenario];
+  }
+
+  async function waitUntilCompleted(element) {
+    return element.waitUntilExists('section.execution.ready');
   }
 
   const closedWorkflowExecution = {
@@ -93,35 +92,47 @@ describe('Workflow', () => {
 
   describe('Workflow Statistics', () => {
     it('should show statistics from the workflow', async function test() {
-      return summaryTest(this.test).then(([summaryEl]) => {
-        summaryEl
-          .querySelector('.workflow-id dd')
-          .should.have.text('email-daily-summaries');
-        summaryEl.querySelector('.run-id dd').should.have.text('emailRun1');
-        summaryEl.querySelector('.history-length dd').should.have.text('14');
-        summaryEl
-          .querySelector('.workflow-name dd')
-          .should.have.text('CIDemoWorkflow');
-        summaryEl
-          .querySelector('.task-list dd a[href]')
-          .should.contain.text('ci_task_list')
-          .and.have.attr('href', '/domains/ci-test/task-lists/ci_task_list');
-        summaryEl.querySelector('.started-at dd').should.have.text(
-          moment()
-            .startOf('hour')
-            .subtract(2, 'minutes')
-            .format('MMM D, YYYY h:mm:ss A')
-        );
-        summaryEl.should.not.have.descendant('.close-time');
-        summaryEl.should.not.have.descendant('.pending-activities');
-        summaryEl.should.not.have.descendant('.parent-workflow');
-        summaryEl
-          .querySelector('.workflow-status dd')
-          .should.contain.text('running');
-        summaryEl
-          .querySelector('.workflow-status loader.bar')
-          .should.not.have.property('display', 'none');
-      });
+      const [summaryEl] = await summaryTest(this.test, {}, true);
+
+      summaryEl
+        .querySelector('.workflow-id dd')
+        .should.have.text('email-daily-summaries');
+
+      summaryEl.querySelector('.run-id dd').should.have.text('emailRun1');
+
+      summaryEl.querySelector('.history-length dd').should.have.text('14');
+
+      summaryEl
+        .querySelector('.workflow-name dd')
+        .should.have.text('CIDemoWorkflow');
+
+      summaryEl
+        .querySelector('.task-list dd a[href]')
+        .should.contain.text('ci_task_list')
+        .and.have.attr('href', '/domains/ci-test/task-lists/ci_task_list');
+
+      summaryEl.querySelector('.started-at dd').should.have.text(
+        moment()
+          .startOf('hour')
+          .subtract(2, 'minutes')
+          .format('MMM D, YYYY h:mm:ss A')
+      );
+
+      summaryEl.should.not.have.descendant('.close-time');
+
+      summaryEl.should.not.have.descendant('.pending-activities');
+
+      summaryEl.should.not.have.descendant('.parent-workflow');
+
+      summaryEl
+        .querySelector('.workflow-status dd')
+        .should.contain.text('running');
+
+      summaryEl
+        .querySelector('.workflow-status loader.bar')
+        .should.not.have.property('display', 'none');
+
+      await waitUntilCompleted(summaryEl);
     });
   });
 
@@ -275,10 +286,10 @@ describe('Workflow', () => {
     it('should show the result of the workflow if completed', async function test() {
       const [summaryEl] = await summaryTest(this.test);
       const resultsEl = await summaryEl.waitUntilExists('.workflow-result pre');
+      const historyFixture = getFixture('history.emailRun1');
 
       JSON.parse(resultsEl.textContent).should.deep.equal(
-        fixtures.history.emailRun1[fixtures.history.emailRun1.length - 1]
-          .details.result
+        historyFixture[historyFixture.length - 1].details.result
       );
       resultsEl
         .textNodes('.token.string')
@@ -291,7 +302,7 @@ describe('Workflow', () => {
 
     it('should show the failure result from a failed workflow', async function test() {
       const [summaryEl] = await summaryTest(this.test, {
-        events: fixtures.history.exampleTimeout,
+        events: getFixture('history.exampleTimeout'),
       });
       const resultsEl = await summaryEl.waitUntilExists('.workflow-result pre');
 
@@ -337,18 +348,27 @@ describe('Workflow', () => {
 
     describe('Actions', () => {
       it('should offer the user to terminate a running workflow, prompting the user for a termination reason', async function test() {
-        const [summaryEl] = await summaryTest(this.test);
+        const [summaryEl] = await summaryTest(
+          this.test,
+          {
+            history: { delay: 500 },
+          },
+          true
+        );
+
         const terminateEl = await summaryEl.waitUntilExists(
           'aside.actions button'
         );
 
-        terminateEl.trigger('click');
+        await retry(() => terminateEl.should.not.have.attr('disabled'));
 
-        await Promise.delay(1000);
+        terminateEl.trigger('click');
 
         const confirmTerminateEl = await summaryEl.waitUntilExists(
           '[data-modal="confirm-termination"]'
         );
+
+        await Promise.delay(50);
 
         confirmTerminateEl.should.contain.text(
           'Are you sure you want to terminate this workflow?'
@@ -357,14 +377,26 @@ describe('Workflow', () => {
           .contain('button[name="button-terminate"]')
           .and.contain('button[name="button-cancel"]')
           .and.contain('input[placeholder="Reason"]');
+
+        await waitUntilCompleted(summaryEl);
       });
 
       it('should terminate the workflow with the provided reason', async function test() {
-        const [summaryEl, scenario] = await summaryTest(this.test);
-
-        (await summaryEl.waitUntilExists('aside.actions button')).trigger(
-          'click'
+        const [summaryEl, scenario] = await summaryTest(
+          this.test,
+          {
+            history: { delay: 250 },
+          },
+          true
         );
+
+        const terminateEl = await summaryEl.waitUntilExists(
+          'aside.actions button'
+        );
+
+        await retry(() => terminateEl.should.not.have.attr('disabled'));
+
+        terminateEl.trigger('click');
 
         const confirmTerminateEl = await summaryEl.waitUntilExists(
           '[data-modal="confirm-termination"]'
@@ -382,33 +414,57 @@ describe('Workflow', () => {
         await retry(() =>
           summaryEl.should.not.contain('[data-modal="confirm-termination"]')
         );
+
+        await waitUntilCompleted(summaryEl);
       });
 
       it('should terminate the workflow without a reason', async function test() {
-        const [summaryEl, scenario] = await summaryTest(this.test);
-
-        (await summaryEl.waitUntilExists('aside.actions button')).trigger(
-          'click'
+        const [summaryEl, scenario] = await summaryTest(
+          this.test,
+          {
+            history: { delay: 250 },
+          },
+          true
         );
 
         const terminateEl = await summaryEl.waitUntilExists(
+          'aside.actions button'
+        );
+
+        await retry(() => terminateEl.should.not.have.attr('disabled'));
+
+        terminateEl.trigger('click');
+
+        const terminateConfirmEl = await summaryEl.waitUntilExists(
           '[data-modal="confirm-termination"] button[name="button-terminate"]'
         );
 
         scenario.withWorkflowTermination();
-        terminateEl.trigger('click');
+        terminateConfirmEl.trigger('click');
 
         await retry(() =>
           summaryEl.should.not.contain('[data-modal="confirm-termination"]')
         );
+
+        await waitUntilCompleted(summaryEl);
       });
 
       it('should allow the user to cancel the termination prompt, doing nothing', async function test() {
-        const [summaryEl] = await summaryTest(this.test);
-
-        (await summaryEl.waitUntilExists('aside.actions button')).trigger(
-          'click'
+        const [summaryEl] = await summaryTest(
+          this.test,
+          {
+            history: { delay: 250 },
+          },
+          true
         );
+
+        const terminateEl = await summaryEl.waitUntilExists(
+          'aside.actions button'
+        );
+
+        await retry(() => terminateEl.should.not.have.attr('disabled'));
+
+        terminateEl.trigger('click');
 
         const cancelDialog = await summaryEl.waitUntilExists(
           '[data-modal="confirm-termination"] button[name="button-cancel"]'
@@ -418,12 +474,14 @@ describe('Workflow', () => {
         await retry(() =>
           summaryEl.should.not.contain('[data-modal="confirm-termination"]')
         );
-        await Promise.delay(200);
+
+        await waitUntilCompleted(summaryEl);
       });
 
       it('should not offer the user the ability to terminate completed workflows', async function test() {
         const [summaryEl] = await summaryTest(this.test, {
           execution: closedWorkflowExecution,
+          history: { delay: 250 },
         });
 
         await retry(() =>
@@ -447,7 +505,7 @@ describe('Workflow', () => {
 
       const historyEl = await scenario
         .render(opts.attach)
-        .waitUntilExists('section.history');
+        .waitUntilExists('section.execution.ready');
 
       return [historyEl, scenario];
     }
@@ -506,7 +564,6 @@ describe('Workflow', () => {
     });
 
     describe('Compact View', function describeTest() {
-      this.timeout(4000);
       let prevPollInterval;
       let prevRetryAttempts;
 
@@ -523,7 +580,7 @@ describe('Workflow', () => {
 
       async function compactViewTest(mochaTest) {
         const [summaryEl, scenario] = await historyTest(mochaTest, {
-          events: fixtures.history.timelineVariety,
+          events: getFixture('history.timelineVariety'),
           query: 'format=compact&graphView=timeline',
           attach: true,
         });
@@ -692,7 +749,7 @@ describe('Workflow', () => {
 
       it('should show event details on initial load, and allow dismissal', async function test() {
         const [summaryEl] = await historyTest(this.test, {
-          events: fixtures.history.timelineVariety,
+          events: getFixture('history.timelineVariety'),
           query: 'format=compact&eventId=8',
           attach: true,
         });
@@ -745,7 +802,7 @@ describe('Workflow', () => {
           historyEl
             .textNodes('.table .vue-recycle-scroller__item-view .td.col-time')
             .should.deep.equal([
-              moment(fixtures.history.emailRun1[0].timestamp).format(
+              moment(getFixture('history.emailRun1')[0].timestamp).format(
                 'MMM D, YYYY h:mm:ss A'
               ),
               '',
@@ -773,13 +830,11 @@ describe('Workflow', () => {
 
         tsEl.trigger('click');
         await retry(() =>
-          historyEl
-            .textNodes('.td.col-time')
-            .should.deep.equal(
-              fixtures.history.emailRun1
-                .filter((_value, index) => index < 6)
-                .map(e => moment(e.timestamp).format('MMM D, YYYY h:mm:ss A'))
-            )
+          historyEl.textNodes('.td.col-time').should.deep.equal(
+            getFixture('history.emailRun1')
+              .filter((_value, index) => index < 6)
+              .map(e => moment(e.timestamp).format('MMM D, YYYY h:mm:ss A'))
+          )
         );
         localStorage
           .getItem('ci-test:history-ts-col-format')
@@ -791,13 +846,11 @@ describe('Workflow', () => {
         const [historyEl] = await historyTest(this.test);
 
         await retry(() =>
-          historyEl
-            .textNodes('.td.col-time')
-            .should.deep.equal(
-              fixtures.history.emailRun1
-                .filter((_value, index) => index < 6)
-                .map(e => moment(e.timestamp).format('MMM D, YYYY h:mm:ss A'))
-            )
+          historyEl.textNodes('.td.col-time').should.deep.equal(
+            getFixture('history.emailRun1')
+              .filter((_value, index) => index < 6)
+              .map(e => moment(e.timestamp).format('MMM D, YYYY h:mm:ss A'))
+          )
         );
       });
 
@@ -807,7 +860,7 @@ describe('Workflow', () => {
           '.results .tr:first-child .td:nth-child(4)'
         );
         const inputPreText = JSON.stringify(
-          fixtures.history.emailRun1[0].details.input,
+          getFixture('history.emailRun1')[0].details.input,
           null,
           2
         );
@@ -910,7 +963,7 @@ describe('Workflow', () => {
 
           ddTextNodes[0].should.equal('6m');
           ddTextNodes[1].should.equalIgnoreSpaces(
-            JSON.stringify(fixtures.history.emailRun1[0].details.input)
+            JSON.stringify(getFixture('history.emailRun1')[0].details.input)
           );
           ddTextNodes[2].should.equal('email-daily-summaries');
         });
@@ -1040,7 +1093,7 @@ describe('Workflow', () => {
           '.results .tr:first-child .td:nth-child(4)'
         );
         const inputPreText = JSON.stringify(
-          fixtures.history.emailRun1[0].details.input,
+          getFixture('history.emailRun1')[0].details.input,
           null,
           2
         );
@@ -1095,6 +1148,14 @@ describe('Workflow', () => {
   });
 
   describe('Stack Trace', () => {
+    before(() => {
+      MockDate.set(new Date());
+    });
+
+    after(() => {
+      MockDate.reset();
+    });
+
     it('should also show a stack trace tab for running workflows', async function test() {
       const [, scenario] = await summaryTest(this.test);
 
@@ -1126,17 +1187,17 @@ describe('Workflow', () => {
           queryResult: 'goroutine 1:\n\tat foo.go:56',
         });
 
+      const stackTraceTime = moment().format('MMM D, YYYY h:mm:ss A');
       const stackTraceEl = await scenario
         .render()
-        .waitUntilExists('section.stack-trace');
+        .waitUntilExists('section.execution.ready section.stack-trace');
 
       await retry(() =>
         stackTraceEl
           .querySelector('header span')
-          .should.contain.text(
-            `Stack trace at ${moment().format('MMM D, YYYY h:mm:ss A')}`
-          )
+          .should.contain.text(`Stack trace at ${stackTraceTime}`)
       );
+
       stackTraceEl
         .querySelector('pre')
         .should.have.text('goroutine 1:\n\tat foo.go:56');
@@ -1170,7 +1231,7 @@ describe('Workflow', () => {
 
       const stackTraceEl = await scenario
         .render()
-        .waitUntilExists('section.stack-trace');
+        .waitUntilExists('section.execution.ready section.stack-trace');
 
       await retry(() =>
         stackTraceEl
@@ -1193,11 +1254,11 @@ describe('Workflow', () => {
     async function queryTest(mochaTest, query) {
       const [scenario] = workflowTest(mochaTest, { view: 'query' });
 
-      scenario.withHistory(fixtures.history.emailRun1).withQuery(query);
+      scenario.withHistory(getFixture('history.emailRun1')).withQuery(query);
 
       const queryEl = await scenario
         .render()
-        .waitUntilExists('section.execution section.query');
+        .waitUntilExists('section.execution.ready section.query');
 
       return [queryEl, scenario];
     }
@@ -1210,7 +1271,7 @@ describe('Workflow', () => {
       ]);
 
       const queryDropdown = await queryEl.waitUntilExists(
-        '.query-name .dropdown'
+        '.query-name .select-input'
       );
       const options = await queryDropdown.selectOptions();
 
@@ -1234,7 +1295,7 @@ describe('Workflow', () => {
     it('should run a query and show the result', async function test() {
       const [queryEl, scenario] = await queryTest(this.test);
 
-      await queryEl.waitUntilExists('.query-name .dropdown');
+      await queryEl.waitUntilExists('.query-name .select-input');
       const runButton = queryEl.querySelector('a.run');
 
       await retry(() => runButton.should.have.attr('href', '#'));
@@ -1249,7 +1310,7 @@ describe('Workflow', () => {
     it('should show an error if there was an error running the query', async function test() {
       const [queryEl, scenario] = await queryTest(this.test);
 
-      await queryEl.waitUntilExists('.query-name .dropdown');
+      await queryEl.waitUntilExists('.query-name .select-input');
       const runButton = queryEl.querySelector('a.run');
 
       await retry(() => runButton.should.have.attr('href', '#'));

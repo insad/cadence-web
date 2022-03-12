@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Uber Technologies Inc.
+// Copyright (c) 2021-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,6 +19,39 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+export {
+  actions as activeStatusActions,
+  container as ActiveStatus,
+  getters as activeStatusGetters,
+} from './active-status';
+export {
+  actions as clusterActions,
+  getDefaultState as getClusterDefaultState,
+  getters as clusterGetters,
+  mutations as clusterMutations,
+} from './cluster';
+export {
+  actions as crossRegionActions,
+  container as CrossRegion,
+  getDefaultState as getCrossRegionDefaultState,
+  getters as crossRegionGetters,
+  mutations as crossRegionMutations,
+} from './cross-region';
+export {
+  actions as domainActions,
+  container as Domain,
+  getDefaultState as getDomainDefaultState,
+  getters as domainGetters,
+  mutations as domainMutations,
+} from './domain';
+export {
+  actions as domainAutocompleteActions,
+  container as DomainAutocomplete,
+  getDefaultState as getDomainAutocompleteDefaultState,
+  getters as domainAutocompleteGetters,
+  mutations as domainAutocompleteMutations,
+  reducer as domainAutocompleteReducer,
+} from './domain-autocomplete';
 export {
   getDefaultState as getGraphDefaultState,
   getters as graphGetters,

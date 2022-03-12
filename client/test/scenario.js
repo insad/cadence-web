@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,9 +28,9 @@ import vueModal from 'vue-js-modal';
 import deepmerge from 'deepmerge';
 
 import main from '../main';
-import { http } from '../helpers';
 import initStore from '../store';
-import fixtures from './fixtures';
+import { httpService } from '../services';
+import { getFixture } from './helpers';
 
 export default function Scenario(test) {
   // eslint-disable-next-line no-param-reassign
@@ -48,6 +48,7 @@ export default function Scenario(test) {
 
     mocha.throwError(new Error(msg));
   });
+  this.origin = window.location.origin;
 }
 
 Scenario.prototype.isDebuggingJustThisTest = function isDebuggingJustThisTest() {
@@ -57,9 +58,7 @@ Scenario.prototype.isDebuggingJustThisTest = function isDebuggingJustThisTest() 
 };
 
 Scenario.prototype.render = function render(attachToBody) {
-  const $http = http.bind(null, this.api);
-
-  $http.post = http.post.bind(null, this.api);
+  httpService.setFetch(this.api);
 
   this.router = new Router({ ...main.routeOpts, mode: 'abstract' });
   this.router.push(this.initialUrl || '/');
@@ -67,6 +66,7 @@ Scenario.prototype.render = function render(attachToBody) {
   const el = document.createElement('div');
 
   const store = initStore({
+    router: this.router,
     state: this.storeState,
   });
 
@@ -81,13 +81,6 @@ Scenario.prototype.render = function render(attachToBody) {
     store,
     template: '<App/>',
     components: { App: main.App },
-    mixins: [
-      {
-        created() {
-          this.$http = $http;
-        },
-      },
-    ],
   });
 
   vueModal.rootInstance = this.vm;
@@ -137,6 +130,14 @@ Object.defineProperty(Scenario.prototype, 'location', {
   },
 });
 
+Scenario.prototype.withCluster = function withCluster() {
+  const { origin } = this;
+
+  this.api.getOnce(`${origin}/api/cluster`, getFixture('cluster'));
+
+  return this;
+};
+
 Scenario.prototype.withDomain = function withDomain(domain) {
   this.domain = domain;
 
@@ -147,7 +148,9 @@ Scenario.prototype.withDomainAuthorization = function withDomainAuthorization(
   domain,
   authorization
 ) {
-  this.api.getOnce(`/api/domains/${domain}/authorization`, {
+  const { origin } = this;
+
+  this.api.getOnce(`${origin}/api/domains/${domain}/authorization`, {
     authorization,
   });
 
@@ -158,8 +161,10 @@ Scenario.prototype.withDomainDescription = function withDomainDescription(
   domain,
   domainDesc
 ) {
+  const { origin } = this;
+
   this.api.getOnce(
-    `/api/domains/${domain}`,
+    `${origin}/api/domains/${domain}`,
     deepmerge(
       {
         domainInfo: {
@@ -193,11 +198,24 @@ Scenario.prototype.withDomainDescription = function withDomainDescription(
   return this;
 };
 
+Scenario.prototype.withDomainSearch = function withDomainSearch() {
+  const { origin } = this;
+
+  this.api.getOnce(
+    `${origin}/api/domains?querystring=ci-tests`,
+    getFixture('domainSearch')
+  );
+
+  return this;
+};
+
 Scenario.prototype.withFeatureFlags = function withFeatureFlags(
-  featureFlags = []
+  featureFlags = getFixture('featureFlags')
 ) {
+  const { origin } = this;
+
   featureFlags.forEach(({ key, value }) => {
-    this.api.getOnce(`/api/feature-flags/${key}`, {
+    this.api.getOnce(`${origin}/api/feature-flags/${key}`, {
       key,
       value,
     });
@@ -207,29 +225,17 @@ Scenario.prototype.withFeatureFlags = function withFeatureFlags(
 };
 
 Scenario.prototype.withNewsFeed = function withNewsFeed() {
-  this.api.getOnce('/feed.json', {
-    version: 'https://jsonfeed.org/version/1',
-    title: '',
-    home_page_url: '/',
-    feed_url: '/feed.json',
-    items: [
-      {
-        id: '/_news/2019/05/05/writing-a-vuepress-theme-2/',
-        url: '/_news/2019/05/05/writing-a-vuepress-theme-2/',
-        title: 'Writing a VuePress theme',
-        summary: 'To write a theme, create a .vuepress/theme directory ...',
-        date_modified: '2019-05-06T00:00:00.000Z',
-      },
-      {
-        id: '/_news/2019/02/25/markdown-slot-3/',
-        url: '/_news/2019/02/25/markdown-slot-3/',
-        title: 'Markdown Slot',
-        summary:
-          'VuePress implements a content distribution API for Markdown...',
-        date_modified: '2019-02-26T00:00:00.000Z',
-      },
-    ],
-  });
+  const { origin } = this;
+
+  this.api.getOnce(`${origin}/feed.json`, getFixture('newsFeed.simple'));
+
+  return this;
+};
+
+Scenario.prototype.withEmptyNewsFeed = function withEmptyNewsFeed() {
+  const { origin } = this;
+
+  this.api.getOnce(`${origin}/feed.json`, getFixture('newsFeed.empty'));
 
   return this;
 };
@@ -243,16 +249,12 @@ Scenario.prototype.withStoreState = function withStoreState(state = {}) {
 Scenario.prototype.withWorkflows = function withWorkflows({
   status,
   query,
-  workflows,
+  workflows = getFixture(`workflows.${status}`),
   startTimeOffset,
 } = {}) {
-  if (!workflows) {
-    // eslint-disable-next-line no-param-reassign
-    workflows = JSON.parse(JSON.stringify(fixtures.workflows[status]));
-  }
-
   const startTimeDays = startTimeOffset || status === 'open' ? 30 : 21;
-  const baseUrl = `/api/domains/${this.domain}/workflows/${status}`;
+  const { origin } = this;
+  const baseUrl = `${origin}/api/domains/${this.domain}/workflows/${status}`;
   const queryString = qs.stringify(
     status === 'list'
       ? query
@@ -278,7 +280,9 @@ Scenario.prototype.withWorkflows = function withWorkflows({
 };
 
 Scenario.prototype.execApiBase = function execApiBase(workflowId, runId) {
-  return `/api/domains/${this.domain}/workflows/${encodeURIComponent(
+  const { domain, origin } = this;
+
+  return `${origin}/api/domains/${domain}/workflows/${encodeURIComponent(
     workflowId || this.workflowId
   )}/${encodeURIComponent(runId || this.runId)}`;
 };
@@ -312,7 +316,11 @@ Scenario.prototype.withWorkflow = function withWorkflow(
   return this;
 };
 
-Scenario.prototype.withHistory = function withHistory(events, hasMorePages) {
+Scenario.prototype.withHistory = function withHistory(
+  events,
+  hasMorePages,
+  options = {}
+) {
   if (!this.historyNpt) {
     this.historyNpt = {};
   }
@@ -338,20 +346,18 @@ Scenario.prototype.withHistory = function withHistory(events, hasMorePages) {
     response.nextPageToken = makeToken();
   }
 
-  this.api.getOnce(url, response, { delay: 100 });
+  this.api.getOnce(url, response, { delay: 100, ...options });
 
   return this;
 };
 
-Scenario.prototype.withFullHistory = function withFullHistory(events) {
-  const parsedEvents = JSON.parse(
-    JSON.stringify(events || fixtures.history.emailRun1)
-  );
+Scenario.prototype.withFullHistory = function withFullHistory(events, options) {
+  const parsedEvents = getFixture('history.emailRun1', events);
   const third = Math.floor(parsedEvents.length / 3);
 
-  return this.withHistory(parsedEvents.slice(0, third), true)
-    .withHistory(parsedEvents.slice(third, third + third), true)
-    .withHistory(parsedEvents.slice(third + third));
+  return this.withHistory(parsedEvents.slice(0, third), true, options)
+    .withHistory(parsedEvents.slice(third, third + third), true, options)
+    .withHistory(parsedEvents.slice(third + third), false, options);
 };
 
 Scenario.prototype.withQuery = function withQuery(query) {
@@ -386,8 +392,10 @@ Scenario.prototype.withTaskListPollers = function withTaskListPollers(
   taskList,
   pollers
 ) {
+  const { domain, origin } = this;
+
   this.api.getOnce(
-    `/api/domains/${this.domain}/task-lists/${taskList}/pollers`,
+    `${origin}/api/domains/${domain}/task-lists/${taskList}/pollers`,
     pollers || {
       node1: {
         lastAccessTime: moment()
@@ -414,7 +422,9 @@ Scenario.prototype.withTaskListPollers = function withTaskListPollers(
 };
 
 Scenario.prototype.withTaskList = function withTaskList(taskList, pollers) {
-  this.api.get(`/api/domains/${this.domain}/task-lists/${taskList}`, {
+  const { domain, origin } = this;
+
+  this.api.get(`${origin}/api/domains/${domain}/task-lists/${taskList}`, {
     pollers: pollers || [
       {
         identity: 'identity1',

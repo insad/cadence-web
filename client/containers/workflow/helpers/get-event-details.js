@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@ import getEventKvpsHighlight from './get-event-kvps-highlight';
 import { getKeyValuePairs } from '~helpers';
 
 const getEventDetails = ({
+  clusterName,
   event,
   workflowHistoryEventHighlightList = [],
   workflowHistoryEventHighlightListEnabled = false,
@@ -32,6 +33,7 @@ const getEventDetails = ({
   const { kvps, isHighlighted } = getEventKvpsHighlight({
     eventType,
     kvps: getKeyValuePairs({
+      clusterName,
       item: {
         timestamp: timeStampDisplay,
         eventId,

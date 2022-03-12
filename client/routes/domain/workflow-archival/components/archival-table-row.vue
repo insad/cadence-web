@@ -1,5 +1,5 @@
 <script>
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,8 +23,10 @@
 export default {
   name: 'archival-table-row',
   props: [
+    'clusterName',
     'closeStatus',
     'closeTime',
+    'domainName',
     'runId',
     'startTime',
     'workflowId',
@@ -43,6 +45,8 @@ export default {
         :to="{
           name: 'workflow/summary',
           params: {
+            clusterName,
+            domain: domainName,
             runId: runId,
             workflowId: workflowId,
           },

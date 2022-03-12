@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 Uber Technologies Inc.
+// Copyright (c) 2017-2022 Uber Technologies Inc.
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,7 +24,7 @@ import { summarizeEvents } from './summarize-events';
 import { WORKFLOW_EVENT_TYPE } from '~constants';
 import { shortName } from '~helpers';
 
-export default function(historyEvents) {
+export default function({ clusterName, historyEvents }) {
   const events = [];
   const hash = {};
 
@@ -34,6 +34,8 @@ export default function(historyEvents) {
 
     return i;
   };
+
+  const summarizeEventsMap = summarizeEvents({ clusterName });
 
   const assignEnd = (item, end) => {
     // eslint-disable-next-line no-param-reassign
@@ -74,7 +76,10 @@ export default function(historyEvents) {
         item.eventIds.push(e.eventId);
 
         if (e.eventType !== WORKFLOW_EVENT_TYPE.ActivityTaskStarted) {
-          Object.assign(item.details, summarizeEvents[e.eventType](e.details));
+          Object.assign(
+            item.details,
+            summarizeEventsMap[e.eventType](e.details)
+          );
         }
       }
 
@@ -110,8 +115,8 @@ export default function(historyEvents) {
       } else {
         item.eventIds.push(e.eventId);
 
-        if (e.eventType in summarizeEvents) {
-          const summary = summarizeEvents[e.eventType](e.details);
+        if (e.eventType in summarizeEventsMap) {
+          const summary = summarizeEventsMap[e.eventType](e.details);
 
           if (
             !item.titleLink &&
@@ -149,6 +154,12 @@ export default function(historyEvents) {
           .duration(e.details.startToFireTimeoutSeconds, 'seconds')
           .format()})`,
       });
+    } else if (e.eventType === WORKFLOW_EVENT_TYPE.TimerCanceled) {
+      const timerStartedEvent = hash[`timer${e.details.timerId}`];
+
+      if (timerStartedEvent) {
+        timerStartedEvent.eventIds.push(e.eventId);
+      }
     } else if (e.eventType === WORKFLOW_EVENT_TYPE.TimerFired) {
       const timerStartedEvent = hash[`timer${e.details.timerId}`];
 
@@ -172,7 +183,9 @@ export default function(historyEvents) {
             SideEffect: 'Side Effect',
             LocalActivity: 'Local Activity',
           }[e.details.markerName] || `${e.details.markerName} Marker`,
-        details: summarizeEvents[WORKFLOW_EVENT_TYPE.MarkerRecorded](e.details),
+        details: summarizeEventsMap[WORKFLOW_EVENT_TYPE.MarkerRecorded](
+          e.details
+        ),
       });
     } else if (e.eventType === WORKFLOW_EVENT_TYPE.WorkflowExecutionSignaled) {
       add({
@@ -195,7 +208,7 @@ export default function(historyEvents) {
         eventIds: [e.eventId],
         start: moment(e.timestamp),
         content: 'External Workflow Signaled',
-        details: summarizeEvents[
+        details: summarizeEventsMap[
           WORKFLOW_EVENT_TYPE.SignalExternalWorkflowExecutionInitiated
         ](e.details),
       });
